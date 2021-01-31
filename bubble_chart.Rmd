@@ -1,0 +1,106 @@
+---
+title: "Untitled"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    theme: paper
+    #vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(shiny)
+library(shinySignals)
+library(dplyr)
+library(knitr)
+library(bubbles)
+library(hpackedbubble)
+```
+
+Column {.tabset data-width=600}
+-----------------------------------------------------------------------
+### Average daily test volumes 
+
+```{r, fig.keep='none'}
+testing_df = read.csv("https://data.ontario.ca/dataset/a2dfa674-a173-45b3-9964-1e3d2130b40f/resource/07bc0e21-26b5-4152-b609-c1958cb7b227/download/testing_metrics_by_phu.csv")
+#head(testing_df)
+
+test_volumes_new <- gsub(",", "", testing_df$test_volumes_7d_avg) # avoid 'NA introduced by coercion' error when convert from char -> numeric
+testing_df$test_volumes_new <- as.numeric(test_volumes_new) # add `total test volumes`as *numeric* column 
+
+t_df <- testing_df %>% filter(PHU_name != "Ontario") # remove 'Ontario' rows since only considering LOCAL phu regions 
+
+### daily test volume by PHU
+df2 <- t_df %>%
+  group_by(PHU_name) %>%
+  summarise( avg_7_day_volumes = mean(test_volumes_new) )
+## merge w socioeconomic (median household income) data
+socio_df <- read.csv("socioeconomic_phu.csv")
+merge_df2 <- base::merge(socio_df , df2, by.x = "PHU_name" )
+
+# split income into interval brackets (4 intervals)
+income_as_intervals <- cut(merge_df2$median_house_hold_income_after_tax, breaks = seq(50000, 90000, by = 10000), labels = c('$50K-60K', '$60K-70K', '$70K-80K', '$80K-90K'))
+merge_df2$income_interval <- income_as_intervals
+hpackedbubble(merge_df2$income_interval,merge_df2$PHU_name, merge_df2$avg_7_day_volumes,
+              title = "",
+              pointFormat = "<b>{point.name}:</b> {point.y}",
+              dataLabelsFilter = 100,
+              packedbubbleMinSize = "50%",
+              packedbubbleMaxSize = "250%",
+              subtitle = "*Measure of socioeconomic status = Median after-tax household income as of 2016 census data; May 1,2020 to Jan 14,2021",
+              subtitleAlign = "left",
+              theme = "sunset",
+              packedbubbleZMin = 0,
+              packedbubbleZmax = 10000, split = 0,
+              gravitational = 0.02,
+              parentNodeLimit = 1,
+              dragBetweenSeries = 0,
+              width = "100%")
+
+```
+
+### Average daily test volume per 1000 people 
+
+```{r}
+### no. daily tests per 1000 people BY PHU
+df1 <- t_df %>%
+  group_by(PHU_name) %>%
+  summarise(avg_test_per_1000 = mean(tests_per_1000_7d_avg)) 
+
+merge_df <- base::merge(socio_df , df1, by.x = "PHU_name" )
+
+income_as_intervals <- cut(merge_df$median_house_hold_income_after_tax, breaks = seq(50000, 90000, by = 10000), labels = c('$50K-60K', '$60K-70K', '$70K-80K', '$80K-90K'))
+merge_df$income_interval <- income_as_intervals
+hpackedbubble(merge_df$income_interval,merge_df$PHU_name, merge_df$avg_test_per_1000,
+              title = "",
+              subtitle = "*Measure of socioeconomic status = Median after-tax household income as of 2016 census data; May 1,2020 to Jan 14,2021",
+              subtitleAlign = "left",
+              pointFormat = "<b>{point.name}:</b> {point.y}",
+              dataLabelsFilter = 100,
+              packedbubbleMinSize = "10%",
+              packedbubbleMaxSize = "100%",
+              theme = "sunset",
+              split = 0,
+              gravitational = 0.05,
+              parentNodeLimit = 1,
+              dragBetweenSeries = 0,
+              width = "100%", height = "400px")
+
+```
+
+
+
+Column {.tabset data-width=300}
+-----------------------------------------------------------------------
+### Average daily test volume 
+```{r}
+kable(df2[order(df2$avg_7_day_volumes, decreasing = T),])
+```
+
+### Average daily test volume per 1000 people 
+```{r}
+kable(df1[order(df1$avg_test_per_1000, decreasing = T),])
+```
+
+
+
