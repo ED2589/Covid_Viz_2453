@@ -1,0 +1,57 @@
+---
+title: "Page2_Dashboard1"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+```
+
+Row
+-----------------------------------------------------------------------
+
+### Leaflet is a JavaScript library for creating dynamic maps that support panning and zooming along with various annotations.
+
+```{r}
+library(leaflet)
+leaflet() %>%
+  addTiles() %>%
+  addMarkers(lng=174.768, lat=-36.852, popup="The birthplace of R")
+```
+
+***
+
+https://rstudio.github.io/leaflet/
+
+- Interactive panning/zooming
+
+- Compose maps using arbitrary combinations of map tiles, markers, polygons, lines, popups, and GeoJSON.
+
+- Create maps right from the R console or RStudio
+
+- Embed maps in knitr/R Markdown documents and Shiny apps
+
+- Easily render Spatial objects from the sp package, or data frames with latitude/longitude columns
+
+- Use map bounds and mouse events to drive Shiny logic
+
+
+```
+
+Row
+-----------------------------------------------------------------------
+
+### Chart B
+
+```{r}
+
+```
+
+### Chart C
+
+```{r}
+
+```
+
