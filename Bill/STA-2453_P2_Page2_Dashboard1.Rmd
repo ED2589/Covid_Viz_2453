@@ -1,0 +1,149 @@
+---
+title: "P2_Page2_Dashboard1"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+```
+
+Row
+-----------------------------------------------------------------------
+
+### Vaccine Distribution in Canada
+
+```{r, include=FALSE}
+library(leaflet)
+library(maps)
+library(raster)
+library(sp)
+library(rgdal)
+library(jsonlite)
+
+# CA = map("world", "Canada")
+# CA_provinces <- getData(country="Canada", level=1)
+# 
+# leaflet(data = CA_provinces) %>% addTiles() %>%
+#   addPolygons(fillColor = topo.colors(10, alpha = NULL), stroke = FALSE)
+
+
+# if (!file.exists("./src/ref/ne_50m_admin_1_states_provinces_lakes/ne_50m_admin_1_states_provinces_lakes.dbf")){
+#   download.file(file.path('http://www.naturalearthdata.com/http/',
+#                           'www.naturalearthdata.com/download/50m/cultural',
+#                           'ne_50m_admin_1_states_provinces_lakes.zip'), 
+#                 f <- tempfile())
+#   unzip(f, exdir = "./src/ref/ne_50m_admin_1_states_provinces_lakes")
+#   rm(f)
+# }
+# 
+# region <- readOGR("./src/ref/ne_50m_admin_1_states_provinces_lakes", 'ne_50m_admin_1_states_provinces_lakes', encoding='UTF-8')
+# 
+# 
+# leaflet() %>% 
+#   addTiles() %>% 
+#   setView(-74.09, 45.7,  zoom = 3) %>% 
+#   addPolygons(data = subset(region, name %in% c("British Columbia", "Alberta", "Saskatchewan", "Manitoba", "Ontario", "Quebec", "New Brunswick", "Prince Edward Island", "Nova Scotia", "Newfoundland and Labrador", "Yukon", "Northwest Territories", "Nunavut")), 
+#               fillColor = topo.colors(10, alpha = NULL),
+#               weight = 1)# if (!file.exists("./src/ref/ne_50m_admin_1_states_provinces_lakes/ne_50m_admin_1_states_provinces_lakes.dbf")){
+#   download.file(file.path('http://www.naturalearthdata.com/http/',
+#                           'www.naturalearthdata.com/download/50m/cultural',
+#                           'ne_50m_admin_1_states_provinces_lakes.zip'), 
+#                 f <- tempfile())
+#   unzip(f, exdir = "./src/ref/ne_50m_admin_1_states_provinces_lakes")
+#   rm(f)
+# }
+# 
+# region <- readOGR("./src/ref/ne_50m_admin_1_states_provinces_lakes", 'ne_50m_admin_1_states_provinces_lakes', encoding='UTF-8')
+# 
+# 
+# leaflet() %>% 
+#   addTiles() %>% 
+#   setView(-74.09, 45.7,  zoom = 3) %>% 
+#   addPolygons(data = subset(region, name %in% c("British Columbia", "Alberta", "Saskatchewan", "Manitoba", "Ontario", "Quebec", "New Brunswick", "Prince Edward Island", "Nova Scotia", "Newfoundland and Labrador", "Yukon", "Northwest Territories", "Nunavut")), 
+#               fillColor = topo.colors(10, alpha = NULL),
+#               weight = 1)
+
+# canada <- getData("GADM",country="CAN",level=1)
+# leaflet(data = canada) %>% addTiles() %>%
+#    addPolygons(fillColor = topo.colors(10, alpha = NULL), stroke = FALSE)
+
+# province_geo <- readLines("canada_provinces.geojson", warn = FALSE) %>%
+#   paste(collapse = "\n") %>%
+#   fromJSON(simplifyVector = FALSE)
+# 
+# # Default styles for all features
+# province_geo$style = list(
+#   weight = 1,
+#   color = "#555555",
+#   opacity = 1,
+#   fillOpacity = 0.8
+# )
+
+ca_province <- rgdal::readOGR("canada_provinces.geojson")
+vac_province <- read.csv("vaccine_province.csv")
+ca_data <- merge(x = ca_province, y = vac_province, by.x='name', by.y='Province')
+
+pal <- colorNumeric("viridis", NULL)
+
+# info <- lapply(seq(nrow(vac_province)), function(i) {
+#   paste0( '<p>', vac_province[i, "Province"], '<p></p>', 
+#           vac_province[i, "BioNTech"], ', ', 
+#           vac_province[i, "Moderna"],'</p><p>', 
+#           vac_province[i, "Total"], '</p>' ) 
+# })
+
+## Return NA instead of 0
+iszero <- function(x) {
+  for(i in 1:length(x)) {
+    if(as.numeric(gsub(',', '', x[i]))==0) {
+      x[i]=NA
+    }
+  }
+  return(x)
+}
+
+
+info <- sprintf(
+  "<strong>%s</strong><br/>Total Vaccine: %s
+  <br/>Percent of People Vaccinated: %.2f%%<br/>First doses: %s<br/>Second doses: %s<br/>Received doses administered: %.2f%%",
+  ca_data$name, format(ca_data$Total,big.mark=",",scientific=FALSE),
+  ca_data$Percent_of_population_Vaccinated, 
+  format(ca_data$First_doses,big.mark=",",scientific=FALSE), iszero(format(ca_data$Second_doses,big.mark=",",scientific=FALSE)), 
+  ca_data$Received_doses_administered
+) %>% lapply(htmltools::HTML)
+
+  
+```
+
+```{r}
+leaflet(ca_data) %>%
+  addTiles()%>%  # Add defaultmap tiles
+  setView(-74.09, 62,  zoom = 3) %>%
+  # addGeoJSON(province_geo)
+  addPolygons(weight = 1, stroke = TRUE, smoothFactor = 0.3, opacity = 1, fillOpacity = 0.8, 
+              fillColor = ~pal(Received_doses_administered), 
+              # label = ~paste0(name, ": Total Vaccine Distributed ", formatC(Total, big.mark = ", "), 
+              #                 '<br/>', 'BioNTech: ', formatC(BioNTech, big.mark = ", "), 
+              #                 '<br/>', 'Moderna: ', formatC(Moderna, big.mark = ", ")),
+              label = info, 
+              highlightOptions = highlightOptions(color = "white", weight = 1, bringToFront = TRUE)) %>%
+  addLegend(pal = pal, values = ~Received_doses_administered, opacity = 0.8)
+```
+
+Row
+-----------------------------------------------------------------------
+
+### Chart B
+
+```{r}
+
+```
+
+### Chart C
+
+```{r}
+
+```
+
