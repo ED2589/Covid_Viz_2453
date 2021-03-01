@@ -126,6 +126,10 @@ write_csv(vac_province, "vaccine_province.csv")
 ```
 
 ```{r}
+vac_province <- read.csv("vaccine_province.csv")
+```
+
+```{r}
 ca_province <- rgdal::readOGR("canada_provinces.geojson")
 ```
 

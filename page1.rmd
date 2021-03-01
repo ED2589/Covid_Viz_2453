@@ -1,0 +1,95 @@
+---
+title: "COVID-19 Dashboard Page 1"
+output: 
+  flexdashboard::flex_dashboard:
+  orientation: columns
+  vertical_layout: fill
+---
+
+
+### Chart 1
+```{r, include=FALSE, message=FALSE, eval=FALSE, echo=FALSE}
+library(rgeos)
+library(maptools)
+library(ggmap)
+library(raster)
+library(plotly)
+
+ontario.data = read.csv("cases_by_status_and_phu.csv", header=T)
+phu <- shapefile("./PHU/Ministry_of_Health_Public_Health_Unit_Boundary.shp")
+
+spatial_data <- phu@polygons[[1]]@Polygons[[1]]@coords
+phu_id <- rep(phu@data[1,]$PHU_ID, length(spatial_data[,1]))
+ontario_spatial_data <- data.frame(PHU_NUM = phu_id, long = spatial_data[,1], lat = spatial_data[,2])
+
+for(i in 2:length(phu)) {
+  spatial_data = phu@polygons[[i]]@Polygons[[1]]@coords
+  #print(paste0("PHU #", i))
+  phu_id <- rep(phu@data[i,]$PHU_ID, length(spatial_data[,1]))
+  df <- data.frame(PHU_NUM = phu_id, long = spatial_data[,1], lat = spatial_data[,2])
+  ontario_spatial_data <- rbind(ontario_spatial_data, df)
+}
+
+ontario_spatial_data <- na.omit(ontario_spatial_data)
+
+ontario_covid_data <- ontario.data %>%
+  filter(
+    FILE_DATE == "2021-02-14"
+  )
+
+ontario_total_data <- merge(ontario_spatial_data, ontario_covid_data, by="PHU_NUM")
+
+ontario_total_data$ACTIVE_CASE_INTERVALS<-c( "0-50", "51-100", "101-200", "201-500", ">500")[
+                findInterval(ontario_total_data$ACTIVE_CASES , c(0, 50, 100, 200, 500, Inf) ) ]
+
+#head(ontario_total_data)
+
+suppressPackageStartupMessages(library(sp))
+suppressPackageStartupMessages(library(sf))
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(ggiraph))
+suppressPackageStartupMessages(library(gridExtra))
+
+tooltip_css <- "background-color:gray;color:white;font-style:italic;padding:10px;border-radius:10px 20px 10px 20px;"
+
+g <- ggplot(ontario_total_data) +
+  geom_polygon_interactive(
+    color='black',
+    aes(long, lat, group=PHU_NUM, fill=ACTIVE_CASE_INTERVALS,
+        tooltip=sprintf("%s<br/>%s:%s<br/>%s:%s<br/>%s:%s<br/>", PHU_NAME, "Active Cases", ACTIVE_CASES,
+                        "Total Death", DEATHS, "Resolved Cases", RESOLVED_CASES))) +
+    scale_fill_manual(name = "Active Case Intervals", 
+                      values = c("#E1F5FE", "#81D4FA", "#29B6F6", "#0288D1", "#01579B"),
+                      breaks = c( "0-50", "51-100", "101-200", "201-500", ">500")) 
+    #scale_fill_gradient(name = 'Active Cases', low = "#E3F2FD", high = "#0D47A1")+
+    hrbrthemes::theme_ipsum() + 
+    labs(title='Status of COVID-19 cases in Ontario by Public Health Unit ')
+#       caption='Source: https://data.ontario.ca/dataset/status-of-covid-19-cases-in-ontario-by-public-health-unit-phu')
+g
+# widgetframe::frameWidget(ggiraph(code=print(g), tooltip_extra_css = tooltip_css, tooltip_opacity = .9))
+#ggiraph(code=print(g), tooltip_extra_css = tooltip_css, tooltip_opacity = .9)
+
+#renderggiraph({
+#    ggiraph(code=print(g), tooltip_extra_css = tooltip_css, tooltip_opacity = .9)
+#})
+
+```
+
+```{r, include=FALSE}
+# tooltip_css <- "background-color:gray;color:white;font-style:italic;padding:10px;border-radius:10px 20px 10px 20px;"
+# 
+# g <- ggplot(ontario_total_data) +
+#   geom_polygon_interactive(
+#     color='black',
+#     aes(long, lat, group=PHU_NUM, fill=ACTIVE_CASES,
+#         tooltip=sprintf("%s<br/>%s:%s<br/>%s:%s<br/>%s:%s<br/>", PHU_NAME, "Active Cases", ACTIVE_CASES,
+#                         "Total Death", DEATHS, "Resolved Cases", RESOLVED_CASES))) +
+#     scale_fill_gradient(name = 'Active Cases', low = "#E3F2FD", high = "#0D47A1")+
+#     hrbrthemes::theme_ipsum() + 
+#     labs(title='Status of COVID-19 cases in Ontario by Public Health Unit ')
+# #       caption='Source: https://data.ontario.ca/dataset/status-of-covid-19-cases-in-ontario-by-public-health-unit-phu')
+# 
+# widgetframe::frameWidget(ggiraph(code=print(g), tooltip_extra_css = tooltip_css, tooltip_opacity = .9))
+```
+
+
