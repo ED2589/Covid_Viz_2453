@@ -1,0 +1,307 @@
+---
+title: "Row Orientation"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: scroll
+---
+
+Row
+-------------------------------------
+
+### Chart 1
+    
+```{r, fig.width=2.5, fig.height=2}
+
+```
+
+Row
+-------------------------------------
+
+### Vaccines Administered
+    
+```{r, fig.width=2.5, fig.height=15}
+library(ggplot2)
+library(viridis)
+library(hrbrthemes)
+library(plotly)
+library(shiny)
+library(scales)
+
+data <- read.csv("vaccine_administration_total_prov.csv")
+pop_data <- read.csv("province_populations.csv")
+
+pops <- as.numeric(pop_data$Population)
+vaccines_Pfizer <- data$Pfizer.BioNTech
+vaccines_Moderna <- data$Moder
+all_vacs_pop <- vaccines_Pfizer
+
+all_vacs <- vaccines_Pfizer
+Provinces <- data$Province
+numProvs <- length(Provinces)
+dup_Prov <- Provinces
+
+Vaccines <- rep(c("Pfizer" , "Moderna") , numProvs)
+
+for (i in 1:numProvs){
+  dup_Prov[2*i-1] <-Provinces[i]
+  dup_Prov[2*i] <-Provinces[i]
+}
+
+for (i in 1:numProvs){
+  all_vacs[2*i-1] <-vaccines_Pfizer[i]
+  all_vacs[2*i] <-vaccines_Moderna[i]
+  all_vacs_pop[2*i-1] <-vaccines_Pfizer[i]/pops[i]*100
+  all_vacs_pop[2*i] <-vaccines_Moderna[i]/pops[i]*100
+}
+
+bar_data <- data.frame(dup_Prov,Vaccines,all_vacs)
+bar_data_pop <- data.frame(dup_Prov,Vaccines,all_vacs_pop)
+bar_data <- within(bar_data, dup_Prov <- factor(dup_Prov, levels = rev(c("Ontario","Alberta","British Columbia", "Manitoba","New Brunswick",
+                                                                     "Newfoundland and Labrador","Northwest Territories", "Nova Scotia",
+                                                                     "Nunavut","Prince Edward Island", "Quebec","Saskatchewan","Yukon"))))
+bar_data_pop <- within(bar_data_pop, dup_Prov <- factor(dup_Prov, levels = rev(c("Ontario","Alberta","British Columbia", "Manitoba","New Brunswick",
+                                                                     "Newfoundland and Labrador","Northwest Territories", "Nova Scotia",
+                                                                     "Nunavut","Prince Edward Island", "Quebec","Saskatchewan","Yukon"))))
+
+cols <- c("Pfizer" = "#481567FF", "Moderna" = "#33638DFF")
+
+point <- format_format(big.mark = ",", decimal.mark = ",", scientific = FALSE)
+
+ui <- fluidPage(
+  tabsetPanel(
+    tabPanel("Population", plotOutput("pop_plot")),
+    tabPanel("Percentage of Pop.", plotOutput("perc_plot"))
+  
+  )
+
+)
+
+server <- function(input, output){
+
+  output$pop_plot <- renderPlot({
+        pop_p <- ggplot(bar_data, aes(fill=Vaccines, y=all_vacs, x=dup_Prov)) +
+        geom_bar(position="stack", stat="identity") +
+        scale_fill_viridis(discrete = T) +
+        #scale_y_continuous(labels = scales::comma_format(big.mark = ',',decimal.mark = '.')) + 
+        scale_y_continuous(labels = function(all_vacs) format(all_vacs, scientific = FALSE)) + 
+        xlab("Province") +
+        ylab("Total Vaccines Administered") +
+        ylim(0, 450000) +
+        scale_y_continuous(labels = point) +
+        coord_flip() + 
+        scale_colour_manual(values = cols,aesthetics = c("colour", "fill"),labels = c("Moderna","Pfizer")) +
+        theme(text = element_text(size=20),plot.title=element_text(hjust=0.5),axis.text.y = element_text(face =
+        c('plain','plain','plain','plain','plain','plain','plain','plain','plain','plain','plain','plain','bold')))+
+        ggtitle("Vaccine Adminstration by Provinces")  
+        return(pop_p)
+  })
+  
+  output$perc_plot <- renderPlot({
+        p <- ggplot(bar_data_pop, aes(fill=Vaccines, y=all_vacs_pop, x=dup_Prov)) +
+        geom_bar(position="stack", stat="identity") +
+        #scale_fill_viridis(discrete = T) +
+        scale_y_continuous(labels = scales::comma_format(big.mark = ',',decimal.mark = '.')) +
+        xlab("Province") +
+        ylab("Vaccines Administered Per Population (%)") +
+        ylim(0, 50) +
+        coord_flip()+ 
+        scale_colour_manual(values = cols,aesthetics = c("colour", "fill"))+
+        theme(text = element_text(size=20),plot.title=element_text(hjust=0.5),axis.text.y = element_text(face =
+        c('plain','plain','plain','plain','plain','plain','plain','plain','plain','plain','plain','plain','bold')))+
+        ggtitle("Vaccine Adminstration by Provinces")  
+        return(p)
+  })
+}
+
+shinyApp(ui=ui,server=server)
+
+```
+    
+### Chart 3
+
+```{r, fig.width=2.5, fig.height=15}
+library(ggplot2)
+library(viridis)
+library(hrbrthemes)
+library(plotly)
+library(shiny)
+library(scales)
+library(dplyr)
+library(reshape2)
+
+point <- format_format(big.mark = ",", decimal.mark = ",", scientific = FALSE)
+
+data_ts <- read.csv('vaccine_administration_timeseries_prov_2.csv')
+
+data_ts$date_vaccine_administered <- as.Date(data_ts$date_vaccine_administered,tryFormats = c("%d-%m-%Y"))
+
+AB_data <- subset(data_ts[data_ts$province == 'Alberta',],select=c(date_vaccine_administered,cumulative_avaccine))
+BC_data <- subset(data_ts[data_ts$province == 'BC',],select=c(date_vaccine_administered,cumulative_avaccine))
+MN_data <- subset(data_ts[data_ts$province == 'Manitoba',],select=c(date_vaccine_administered,cumulative_avaccine))
+NB_data <- subset(data_ts[data_ts$province == 'New Brunswick',],select=c(date_vaccine_administered,cumulative_avaccine))
+NL_data <- subset(data_ts[data_ts$province == 'NL',],select=c(date_vaccine_administered,cumulative_avaccine))
+NS_data <- subset(data_ts[data_ts$province == 'Nova Scotia',],select=c(date_vaccine_administered,cumulative_avaccine))
+NU_data <- subset(data_ts[data_ts$province == 'Nunavut',],select=c(date_vaccine_administered,cumulative_avaccine))
+NWT_data <- subset(data_ts[data_ts$province == 'NWT',],select=c(date_vaccine_administered,cumulative_avaccine))
+ON_data <- subset(data_ts[data_ts$province == 'Ontario',],select=c(date_vaccine_administered,cumulative_avaccine))
+PEI_data <- subset(data_ts[data_ts$province == 'PEI',],select=c(date_vaccine_administered,cumulative_avaccine))
+QU_data <- subset(data_ts[data_ts$province == 'Quebec',],select=c(date_vaccine_administered,cumulative_avaccine))
+SA_data <- subset(data_ts[data_ts$province == 'Saskatchewan',],select=c(date_vaccine_administered,cumulative_avaccine))
+YU_data <- subset(data_ts[data_ts$province == 'Yukon',],select=c(date_vaccine_administered,cumulative_avaccine))
+
+
+p_all <- ggplot(AB_data, aes(x = date_vaccine_administered, y = cumulative_avaccine)) +
+     geom_line(aes(color = "Other"),size=1) + 
+     geom_line(data=BC_data,aes(color = "Other"),size=1)+
+     geom_line(data=MN_data,aes(color = "Other"),size=1)+
+     geom_line(data=NB_data,aes(color = "Other"),size=1)+ 
+     geom_line(data=NL_data,aes(color = "Other"),size=1)+ 
+     geom_line(data=NS_data,aes(color = "Other"),size=1)+ 
+     geom_line(data=NU_data,aes(color = "Other"),size=1)+ 
+     geom_line(data=NWT_data,aes(color = "Other"),size=1)+ 
+     geom_line(data=PEI_data,aes(color = "Other"),size=1)+ 
+     geom_line(data=QU_data,aes(color = "Other"),size=1)+ 
+     geom_line(data=SA_data,aes(color = "Other"),size=1)+ 
+     geom_line(data=YU_data,aes(color = "Other"),size=1)+
+     geom_line(data=ON_data,aes(color = "ON"),size=2)+
+     theme(text = element_text(size=20)) +
+     labs(fill = "Provinces")+
+     xlab("Date") +
+     ylab("Cumulative Vaccines Administered") +
+     scale_x_date(date_labels = "%d-%m-%Y")+
+     scale_y_continuous(labels = point)+
+     ggtitle("Vaccine Adminstration Over Time")+
+     theme(plot.title=element_text(hjust=0.5))
+
+ui <- fluidPage(
+  tabsetPanel(
+    tabPanel("Alberta", plotOutput("ALB_plot"),height ="150%"),
+    tabPanel("British Columbia", plotOutput("BC_plot"),height ="150%"),
+    tabPanel("Manitoba", plotOutput("MAN_plot"),height ="150%"),
+    tabPanel("New Brunswick", plotOutput("NB_plot"),height ="150%"),
+    tabPanel("Newfoundland and Labrador", plotOutput("NF_plot"),height ="150%"),
+    tabPanel("Northwest Territories", plotOutput("NT_plot"),height ="150%"),
+    tabPanel("Nova Scotia", plotOutput("NS_plot"),height ="150%"),
+    tabPanel("Nunavut", plotOutput("NUN_plot"),height ="150%"),
+    tabPanel("Prince Edward Island", plotOutput("PEI_plot"),height ="150%"),
+    tabPanel("Quebec", plotOutput("QU_plot"),height ="150%"),
+    tabPanel("Saskatchewan", plotOutput("SAS_plot"),height ="150%"),
+    tabPanel("Yukon", plotOutput("YUK_plot"),height ="150%")
+  )
+)
+
+server <- function(input, output){
+
+  output$NF_plot <- renderPlot({
+    time_cols <- c("NF" = "#238A8DFF", "ON" = "#55C667FF","Other" = "gray45")
+    time_labels <- c("NF" = "NF", "ON" = "ON","Other" = "Other Provinces")
+    p <- p_all + 
+            geom_line(data=NL_data,aes(color = "NF"),size=2) + 
+            scale_colour_manual(values = time_cols,aesthetics = c("colour", "fill"),labels = time_labels,name="Provinces")
+    return(p)
+  })
+  
+  output$PEI_plot <- renderPlot({
+    time_cols <- c("PEI" = "#238A8DFF", "ON" = "#55C667FF","Other" = "gray45")
+    time_labels <- c("PEI" = "PEI", "ON" = "ON","Other" = "Other Provinces")
+    p <- p_all + 
+            geom_line(data=PEI_data,aes(color = "PEI"),size=2) + 
+            scale_colour_manual(values = time_cols,aesthetics = c("colour", "fill"),labels = time_labels,name="Provinces")
+    return(p)
+  })
+  
+  output$NS_plot <- renderPlot({
+    time_cols <- c("NS" = "#238A8DFF", "ON" = "#55C667FF","Other" = "gray45")
+    time_labels <- c("NS" = "NS", "ON" = "ON","Other" = "Other Provinces")
+    p <- p_all + 
+            geom_line(data=NS_data,aes(color = "NS"),size=2) + 
+            scale_colour_manual(values = time_cols,aesthetics = c("colour", "fill"),labels = time_labels,name="Provinces")
+    return(p)
+  })
+  
+  output$NB_plot <- renderPlot({
+    time_cols <- c("NB" = "#238A8DFF", "ON" = "#55C667FF","Other" = "gray45")
+    time_labels <- c("NB" = "NB", "ON" = "ON","Other" = "Other Provinces")
+    p <- p_all + 
+            geom_line(data=NB_data,aes(color = "NB"),size=2) + 
+            scale_colour_manual(values = time_cols,aesthetics = c("colour", "fill"),labels = time_labels,name="Provinces")
+    return(p)
+  })
+  
+  output$QU_plot <- renderPlot({
+    time_cols <- c("QU" = "#238A8DFF", "ON" = "#55C667FF","Other" = "gray45")
+    time_labels <- c("QU" = "QU", "ON" = "ON","Other" = "Other Provinces")
+    p <- p_all + 
+            geom_line(data=QU_data,aes(color = "QU"),size=2) + 
+            scale_colour_manual(values = time_cols,aesthetics = c("colour", "fill"),labels = time_labels,name="Provinces")
+    return(p)
+  })
+  
+  output$MAN_plot <- renderPlot({
+    time_cols <- c("MN" = "#238A8DFF", "ON" = "#55C667FF","Other" = "gray45")
+    time_labels <- c("MN" = "MN", "ON" = "ON","Other" = "Other Provinces")
+    p <- p_all + 
+            geom_line(data=MN_data,aes(color = "MN"),size=2) + 
+            scale_colour_manual(values = time_cols,aesthetics = c("colour", "fill"),labels = time_labels,name="Provinces")
+    return(p)
+  })
+  
+  output$SAS_plot <- renderPlot({
+    time_cols <- c("SA" = "#238A8DFF", "ON" = "#55C667FF","Other" = "gray45")
+    time_labels <- c("SA" = "SA", "ON" = "ON","Other" = "Other Provinces")
+    p <- p_all + 
+            geom_line(data=SA_data,aes(color = "SA"),size=2) + 
+            scale_colour_manual(values = time_cols,aesthetics = c("colour", "fill"),labels = time_labels,name="Provinces")
+    return(p)
+  })
+  
+  output$ALB_plot <- renderPlot({
+    time_cols <- c("AB" = "#238A8DFF", "ON" = "#55C667FF","Other" = "gray45")
+    time_labels <- c("AB" = "AB", "ON" = "ON","Other" = "Other Provinces")
+    p <- p_all + 
+            geom_line(data=AB_data,aes(color = "AB"),size=2) + 
+            scale_colour_manual(values = time_cols,aesthetics = c("colour", "fill"),labels = time_labels,name="Provinces")
+    return(p)
+  })
+  
+  output$BC_plot <- renderPlot({
+    time_cols <- c("BC" = "#238A8DFF", "ON" = "#55C667FF","Other" = "gray45")
+    time_labels <- c("BC" = "BC", "ON" = "ON","Other" = "Other Provinces")
+    p <- p_all + 
+            geom_line(data=BC_data,aes(color = "BC"),size=2) + 
+            scale_colour_manual(values = time_cols,aesthetics = c("colour", "fill"),labels = time_labels,name="Provinces")
+    return(p)
+  })
+  
+  output$YUK_plot <- renderPlot({
+    time_cols <- c("YU" = "#238A8DFF", "ON" = "#55C667FF","Other" = "gray45")
+    time_labels <- c("YU" = "YU", "ON" = "ON","Other" = "Other Provinces")
+    p <- p_all + 
+            geom_line(data=YU_data,aes(color = "YU"),size=2) + 
+            scale_colour_manual(values = time_cols,aesthetics = c("colour", "fill"),labels = time_labels,name="Provinces")
+    return(p)
+  })
+  
+  output$NT_plot <- renderPlot({
+    time_cols <- c("NWT" = "#238A8DFF", "ON" = "#55C667FF","Other" = "gray45")
+    time_labels <- c("NWT" = "NWT", "ON" = "ON","Other" = "Other Provinces")
+    p <- p_all + 
+            geom_line(data=NWT_data,aes(color = "NWT"),size=2) + 
+            scale_colour_manual(values = time_cols,aesthetics = c("colour", "fill"),labels = time_labels,name="Provinces")
+    return(p)
+  })
+  
+  output$NUN_plot <- renderPlot({
+    time_cols <- c("NU" = "#238A8DFF", "ON" = "#55C667FF","Other" = "gray45")
+    time_labels <- c("NU" = "NU", "ON" = "ON","Other" = "Other Provinces")
+    p <- p_all + 
+            geom_line(data=NU_data,aes(color = "NU"),size=2) + 
+            scale_colour_manual(values = time_cols,aesthetics = c("colour", "fill"),labels = time_labels,name="Provinces")
+    return(p)
+  })
+}
+
+shinyApp(ui=ui,server=server)
+
+```
