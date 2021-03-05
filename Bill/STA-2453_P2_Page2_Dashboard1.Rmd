@@ -120,7 +120,7 @@ info <- sprintf(
 ```{r}
 leaflet(ca_data) %>%
   addTiles()%>%  # Add defaultmap tiles
-  setView(-74.09, 62,  zoom = 3) %>%
+  setView(-100, 63,  zoom = 3) %>%
   # addGeoJSON(province_geo)
   addPolygons(weight = 1, stroke = TRUE, smoothFactor = 0.3, opacity = 1, fillOpacity = 0.8, 
               fillColor = ~pal(Received_doses_administered), 
