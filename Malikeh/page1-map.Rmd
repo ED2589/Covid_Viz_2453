@@ -1,0 +1,94 @@
+---
+title: "Page1"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+```
+
+Row
+-----------------------------------------------------------------------
+
+###  in Ontario
+
+```{r, include=FALSE}
+library(leaflet)
+library(maps)
+library(raster)
+library(sp)
+library(rgdal)
+library(jsonlite)
+
+phu <- rgdal::readOGR("./data/Ministry_of_Health_Public_Health_Unit_Boundary.geojson")
+ontario.data = read.csv("./data/cases_by_status_and_phu.csv", header=T)
+
+ontario_covid_data <- ontario.data %>%
+  dplyr::filter(
+    FILE_DATE == "2021-02-14"
+  )
+ontario_total_data <- merge(x = phu, y = ontario_covid_data, by.x='PHU_ID', by.y='PHU_NUM')
+```
+
+```{r, include=FALSE}
+pal <- colorNumeric("viridis", NULL)
+
+## Return NA instead of 0
+iszero <- function(x) {
+  for(i in 1:length(x)) {
+    if(as.numeric(gsub(',', '', x[i]))==0) {
+      x[i]=NA
+    }
+  }
+  return(x)
+}
+
+
+info <- sprintf("%s<br/>%s:%s<br/>%s:%s<br/>%s:%s<br/>", ontario_total_data$PHU_NAME, 
+                "Active Cases", ontario_total_data$ACTIVE_CASES,
+                 "Total Death", ontario_total_data$DEATHS, 
+                "Resolved Cases", ontario_total_data$RESOLVED_CASES)%>% lapply(htmltools::HTML)
+```
+
+```{r}
+ontario_total_data$ACTIVE_CASE_INTERVALS<-c( "A: 0-50", "B: 51-100", "C: 101-200", "D: 201-500", "E: >500")[
+                findInterval(ontario_total_data$ACTIVE_CASES , c(0, 50, 100, 200, 500, Inf) ) ]
+
+pal <- colorFactor(c("#E1F5FE", "#81D4FA", "#29B6F6", "#0288D1", "#01579B"),
+                    c( "A: 0-50", "B: 51-100", "C: 101-200", "D: 201-500", "E: >500"), ordered=FALSE)
+
+leaflet(ontario_total_data) %>%
+  addTiles()%>%
+  setView(-80, 50,  zoom = 4) %>%
+  addPolygons(weight = 1, stroke = TRUE,    smoothFactor = 0.3, opacity = 1, fillOpacity = 0.8,
+              color = ~pal(ACTIVE_CASE_INTERVALS),
+              label = info,
+              highlightOptions = highlightOptions(color = "white", weight = 1, bringToFront = TRUE)) %>%
+  addLegend(pal = pal, values = ~ACTIVE_CASE_INTERVALS, opacity = 0.9)
+```
+Row
+-----------------------------------------------------------------------
+
+### Chart B
+
+```{r}
+```
+
+### Chart C
+
+```{r}
+
+```
+
+
+
+### Chart C
+
+```{r}
+
+```
+
