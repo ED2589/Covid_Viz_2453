@@ -17,3 +17,9 @@ hpackedbubble
 classInt
 plotly
 crosstalk
+leaflet
+maps
+sp
+raster
+rgdal
+jsonlite

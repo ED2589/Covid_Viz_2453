@@ -55,11 +55,11 @@ info <- sprintf("%s<br/>%s:%s<br/>%s:%s<br/>%s:%s<br/>", ontario_total_data$PHU_
 ```
 
 ```{r}
-ontario_total_data$ACTIVE_CASE_INTERVALS<-c( "A: 0-50", "B: 51-100", "C: 101-200", "D: 201-500", "E: >500")[
+ontario_total_data$ACTIVE_CASE_INTERVALS<-c( "0-50", "51-100", "101-200", "201-500", ">500")[
                 findInterval(ontario_total_data$ACTIVE_CASES , c(0, 50, 100, 200, 500, Inf) ) ]
 
 pal <- colorFactor(c("#E1F5FE", "#81D4FA", "#29B6F6", "#0288D1", "#01579B"),
-                    c( "A: 0-50", "B: 51-100", "C: 101-200", "D: 201-500", "E: >500"), ordered=FALSE)
+                    c( "0-50", "51-100", "101-200", "201-500", ">500"), ordered=FALSE, alpha = FALSE)
 
 leaflet(ontario_total_data) %>%
   addTiles()%>%
