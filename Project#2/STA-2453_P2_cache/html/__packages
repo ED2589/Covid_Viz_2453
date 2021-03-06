@@ -23,3 +23,8 @@ sp
 raster
 rgdal
 jsonlite
+viridisLite
+viridis
+hrbrthemes
+scales
+reshape2

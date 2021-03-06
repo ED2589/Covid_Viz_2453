@@ -2,18 +2,11 @@
 title: "COVID-19 for the Ontario General Public"
 output: 
   flexdashboard::flex_dashboard:
-    orientation: rows
     #theme: paper
     vertical_layout: scroll
     #vertical_layout: fill
 #runtime: shiny
 ---
-
-
-Cases in Ontario
-================================
-
-
 
 ```{r setup, include=FALSE}
 library(flexdashboard)
@@ -39,6 +32,13 @@ library(hrbrthemes)
 library(scales)
 library(reshape2)
 ```
+
+Cases in Ontario {data-orientation=rows}
+================================
+
+
+
+
 
 ```{r supp_code, include = FALSE}
 
@@ -93,7 +93,7 @@ document.addEventListener("DOMContentLoaded", function(){
 ```
 
 
-row
+Row
 -------------------------------------
 ### Case Status by Public Health Units
 
@@ -266,7 +266,7 @@ hpackedbubble(merge_df$income_interval,merge_df$PHU_name, merge_df$avg_test_per_
 
 ```
 
-column {.tabset data-height=300}
+row {.tabset data-height=300}
 -----------------------------------------------------------------------
 
 ### Average Daily Test Volume per 1,000 people
@@ -377,7 +377,7 @@ fig1
 ```
 
 
-Vaccination across Canada
+Vaccination across Canada {data-orientation=rows}
 ================================
 
 Row
@@ -486,7 +486,7 @@ info <- sprintf(
 ```{r}
 leaflet(ca_data) %>%
   addTiles()%>%  # Add defaultmap tiles
-  setView(-74.09, 62,  zoom = 3) %>%
+  setView(-100, 63,  zoom = 3) %>%
   # addGeoJSON(province_geo)
   addPolygons(weight = 1, stroke = TRUE, smoothFactor = 0.3, opacity = 1, fillOpacity = 0.8,
               fillColor = ~pal(Received_doses_administered),
