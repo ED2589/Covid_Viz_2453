@@ -22,22 +22,22 @@ ca_table <- vaccine_1 %>%
   html_table(fill = T) 
 
 # how many tables
-length(ca_table)
+# length(ca_table)
 ```
 
 ```{r}
 ca_table <- ca_table[[1]]
-head(ca_table)
+# head(ca_table)
 ```
 
 ```{r}
 names(ca_table) <- c('Province', 'BioNTech', 'Moderna', 'Total')
-head(ca_table)
+# head(ca_table)
 ```
 
 ```{r}
 ca_table <- head(ca_table,-2)
-ca_table
+# ca_table
 ```
 
 ```{r}
@@ -46,7 +46,7 @@ ca_vaccine <- ca_table %>%
   mutate_at(vars('BioNTech', 'Moderna', 'Total'), 
             funs(as.numeric(gsub(',', '', .))))
 
-ca_vaccine
+# ca_vaccine
 ```
 
 ```{r}
@@ -64,7 +64,7 @@ write_csv(ca_vaccine, "vaccine_distribution.csv")
 ## Data_2
 vaccine_2 <- 'https://www.ctvnews.ca/health/coronavirus/coronavirus-vaccine-tracker-how-many-people-in-canada-have-received-shots-1.5247509?fbclid=IwAR3HMQewAhl4fmp8SisM6Pdq-xQN-hG9sa0Q9C1ugzqlNa8UZNGblDHGBcA'
 
-rD <- rsDriver(browser="firefox", port=1998L, verbose=F)
+rD <- rsDriver(browser="firefox", port=4668L, verbose=F)
 remDr <- rD[["client"]]
 ```
 
@@ -84,19 +84,20 @@ ca_table2 <- html %>%
   html_table(fill = T) 
 
 # how many tables
-length(ca_table2)
+# length(ca_table2)
 ```
 
 ```{r}
 ca_table2 <- ca_table2[[2]]
-head(ca_table2)
+# head(ca_table2)
 ```
 
 ```{r}
-ca_table2 <- select(ca_table2,-c(2,8))
+ca_table2 <- subset(ca_table2,select = -c(2,8))
+
 names(ca_table2) <- c('Province', 'Percent_of_population_Vaccinated', 'First_doses', 'Second_doses', 
                       'Recieved_from_manufacturer', 'Received_doses_administered')
-head(ca_table2)
+# head(ca_table2)
 ```
 
 ```{r}
@@ -107,38 +108,24 @@ ca_vaccine2 <- ca_table2 %>%
 ca_vaccine2$Percent_of_population_Vaccinated <- as.numeric(sub("%","",ca_vaccine2$Percent_of_population_Vaccinated))
 ca_vaccine2$Received_doses_administered <- as.numeric(sub("%","",ca_vaccine2$Received_doses_administered))
 
-ca_vaccine2
+# ca_vaccine2
 ```
 
-```{r}
+```{r, include=FALSE}
 write_csv(ca_vaccine2, "vaccine_distribution2.csv")
+remDr$close()
+rD$server$stop()
+gc()
 ```
 
 ```{r}
 ca_vaccine <- read.csv("vaccine_distribution.csv")
 ca_vaccine2 <- read.csv("vaccine_distribution2.csv")
 vac_province <- merge(ca_vaccine, ca_vaccine2, by='Province')
-vac_province
+# vac_province
 ```
 
 ```{r}
 write_csv(vac_province, "vaccine_province.csv")
 ```
-
-```{r}
-vac_province <- read.csv("vaccine_province.csv")
-```
-
-```{r}
-ca_province <- rgdal::readOGR("canada_provinces.geojson")
-```
-
-```{r}
-ca_province$name
-```
-
-```{r}
-ca_data <- merge(x = ca_province, y = vac_province, by.x='name', by.y='Province')
-```
-
 

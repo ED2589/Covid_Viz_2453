@@ -31,6 +31,9 @@ library(viridis)
 library(hrbrthemes)
 library(scales)
 library(reshape2)
+library(rvest)
+library(RCurl)
+library(RSelenium)
 ```
 
 Cases in Ontario {data-orientation=rows}
@@ -95,14 +98,12 @@ document.addEventListener("DOMContentLoaded", function(){
 
 Row
 -------------------------------------
+
 ### Case Status by Public Health Units
 
 ```{r, include=FALSE}
-
-
 phu <- rgdal::readOGR("./data/Ministry_of_Health_Public_Health_Unit_Boundary.geojson")
 ontario.data = read.csv("./data/cases_by_status_and_phu.csv", header=T)
-
 ontario_covid_data <- ontario.data %>%
   dplyr::filter(
     FILE_DATE == "2021-02-14"
@@ -112,7 +113,6 @@ ontario_total_data <- merge(x = phu, y = ontario_covid_data, by.x='PHU_ID', by.y
 
 ```{r, include=FALSE}
 pal <- colorNumeric("viridis", NULL)
-
 ## Return NA instead of 0
 iszero <- function(x) {
   for(i in 1:length(x)) {
@@ -122,8 +122,6 @@ iszero <- function(x) {
   }
   return(x)
 }
-
-
 info <- sprintf("%s<br/>%s:%s<br/>%s:%s<br/>%s:%s<br/>", ontario_total_data$PHU_NAME, 
                 "Active Cases", ontario_total_data$ACTIVE_CASES,
                  "Total Death", ontario_total_data$DEATHS, 
@@ -131,24 +129,26 @@ info <- sprintf("%s<br/>%s:%s<br/>%s:%s<br/>%s:%s<br/>", ontario_total_data$PHU_
 ```
 
 ```{r}
-ontario_total_data$ACTIVE_CASE_INTERVALS<-c( "0-50", "51-100", "101-200", "201-500", ">500")[
-                findInterval(ontario_total_data$ACTIVE_CASES , c(0, 50, 100, 200, 500, Inf) ) ]
-
-pal <- colorFactor(c("#E1F5FE", "#81D4FA", "#29B6F6", "#0288D1", "#01579B"),
-                    c( "0-50", "51-100", "101-200", "201-500", ">500"), ordered=TRUE)
-
+# ontario_total_data$ACTIVE_CASE_INTERVALS<-c( "0-50", "51-100", "101-200", "201-500", ">500")[
+#                 findInterval(ontario_total_data$ACTIVE_CASES , c(0, 50, 100, 200, 500, Inf) ) ]
+group <- factor((ontario_total_data$ACTIVE_CASES>50) + (ontario_total_data$ACTIVE_CASES>100)
+                + (ontario_total_data$ACTIVE_CASES>200) + (ontario_total_data$ACTIVE_CASES>500), 
+                labels = c("0-50", "51-100", "101-200", "201-500", ">500"))
+pal <- colorFactor(c("#616161", "#B2DFDB", "#A1887F", "#80CBC4", "#BDBDBD"),
+                    levels = group, ordered = TRUE)
 leaflet(ontario_total_data) %>%
   addTiles()%>%
-  setView(-80, 50,  zoom = 4) %>%
+  setView(-80, 50,  zoom = 5) %>%
   addPolygons(weight = 1, stroke = TRUE,    smoothFactor = 0.3, opacity = 1, fillOpacity = 0.8,
-              color = ~pal(ACTIVE_CASE_INTERVALS),
+              color = ~pal(group),
               label = info,
               highlightOptions = highlightOptions(color = "white", weight = 1, bringToFront = TRUE)) %>%
-  addLegend(pal = pal, values = ~ACTIVE_CASE_INTERVALS, opacity = 0.9)
+  addLegend(pal = pal, values = ~group, opacity = 0.9, title = 'Active Case Intervals')
 ```
 
-column {.tabset data-height=460}
+column {.tabset data-height=500}
 -----------------------------------------------------------------------
+
 ### Average Daily Test Volume 
 
 ```{r, fig.keep='none'}
@@ -172,7 +172,7 @@ hpackedbubble(merge_df2$income_interval,merge_df2$PHU_name, merge_df2$avg_7_day_
               packedbubbleMaxSize = "190%",
               subtitle = "*Each bubble represents a distinct public health unit (PHU). Colour is by range of median   after-tax household income for that PHU as per the 2016 Canadian census data.",
               subtitleAlign = "left",
-              #theme = "sunset",
+              theme = "darkpurple",
               #packedbubbleZMin = 0,
               #packedbubbleZmax = 10000, 
               split = 0,
@@ -266,7 +266,7 @@ hpackedbubble(merge_df$income_interval,merge_df$PHU_name, merge_df$avg_test_per_
 
 ```
 
-row {.tabset data-height=300}
+column {.tabset data-height=500}
 -----------------------------------------------------------------------
 
 ### Average Daily Test Volume per 1,000 people
@@ -278,8 +278,8 @@ df1$avg_test_per_1000 <- round(df1$avg_test_per_1000, 2)
 df1_desc <- as.data.frame(df1[order(df1$avg_test_per_1000, decreasing = T),])
 df1_desc %>%
   kable(col.names = c("Public Health Unit", "Average tests per 1,000 people"))  %>%
-  kable_styling("striped", full_width = T, font_size = 10.8) %>% 
-  scroll_box(width = "700px", height = "450px")
+  kable_styling("striped", full_width = T, font_size = 14) %>% 
+  scroll_box(width = "1750px", height = "500px")
  
 ```
 
@@ -293,13 +293,17 @@ df_cases <- df_cases %>%
   group_by(Reporting_PHU) %>% 
   tally()
 df_cases_desc <- df_cases[order(df_cases$n, decreasing = T),]
+```
+
+```{r case_count2}
 df_cases_desc %>%
     kable(col.names = c("Public Health Unit", "Total confirmed cases to date"), format.args =  list(big.mark = ",", 
   scientific = FALSE)) %>%
-    kable_styling("striped", full_width = T, font_size = 10.8) %>% 
-    scroll_box(width = "700px", height = "450px")
+    kable_styling("striped", full_width = T, font_size = 14) %>% 
+    scroll_box(width = "1750px", height = "500px")
   
 ```
+
 
 
 row {data-height=500}
@@ -344,36 +348,20 @@ fig1<-
 bscols( widths = c(2, 2, 8),
   filter_select(
   id = "PHU",
-  label = "Select/type one or multiple PHU(s) to compare outbreak rates. Default all displayed. Recommended selection of no more than two.",
+  label = "Step 1. Select/type one or multiple PHU(s) to compare outbreak rates. Default all displayed. Recommended selection of no more than two.",
   sharedData = df_crosstalk,
   group = ~phu_name, 
   multiple = T
 ),
 filter_checkbox(
     id = "outbreak_group",
-    label = "Select one or more outbreak type(s). Default all displayed.",
+    label = "Step 2. Select one or more outbreak type(s). Default all displayed.",
     sharedData = df_crosstalk,
     group = ~outbreak_group
   ), 
 fig1
 )
   
-# bscols( #widths=c(3, 9),
-#   # filter_checkbox(
-#   #   id = "outbreak_group",
-#   #   label = "Select one or more outbreak type(s). Default all displayed.",
-#   #   sharedData = df_crosstalk,
-#   #   group = ~outbreak_group
-#   # )
-#   # ,
-#   fig1
-# )
-
-# bscols(widths=c(3, 9),
-#   list(filter_select("PHU", "Select one or multiple public health unit(s) to compare outbreak rates", df_crosstalk, ~phu_name, multiple=T)),
-#   fig1
-#   )
-
 ```
 
 
@@ -384,6 +372,124 @@ Row
 -----------------------------------------------------------------------
 
 ### Vaccine Distribution in Canada
+
+```{r}
+## Data_1
+vaccine_1 <- 'https://www.canada.ca/en/public-health/services/diseases/2019-novel-coronavirus-infection/prevention-risks/covid-19-vaccine-treatment/vaccine-rollout.html'
+
+ca_table <- vaccine_1 %>% 
+  read_html() %>% 
+  html_table(fill = T) 
+
+# how many tables
+# length(ca_table)
+```
+
+```{r}
+ca_table <- ca_table[[1]]
+# head(ca_table)
+```
+
+```{r}
+names(ca_table) <- c('Province', 'BioNTech', 'Moderna', 'Total')
+# head(ca_table)
+```
+
+```{r}
+ca_table <- head(ca_table,-2)
+# ca_table
+```
+
+```{r}
+ca_table[1,1] <- 'Canada'
+ca_vaccine <- ca_table %>%
+  mutate_at(vars('BioNTech', 'Moderna', 'Total'), 
+            funs(as.numeric(gsub(',', '', .))))
+
+# ca_vaccine
+```
+
+```{r}
+# ca_vaccine$Province
+ca_vaccine$Province[ca_vaccine$Province == 'Newfoundland and  Labrador'] <- 'Newfoundland and Labrador'
+ca_vaccine$Province[ca_vaccine$Province == 'Northwest  Territories'] <- 'Northwest Territories'
+ca_vaccine$Province[ca_vaccine$Province == 'Prince Edward  Island'] <- 'Prince Edward Island'
+```
+
+```{r}
+write_csv(ca_vaccine, "vaccine_distribution.csv")
+```
+
+```{r}
+## Data_2
+vaccine_2 <- 'https://www.ctvnews.ca/health/coronavirus/coronavirus-vaccine-tracker-how-many-people-in-canada-have-received-shots-1.5247509?fbclid=IwAR3HMQewAhl4fmp8SisM6Pdq-xQN-hG9sa0Q9C1ugzqlNa8UZNGblDHGBcA'
+
+rD <- rsDriver(browser="firefox", port=8796L, verbose=F)
+remDr <- rD[["client"]]
+```
+
+```{r}
+remDr$navigate(vaccine_2)
+```
+
+```{r}
+Sys.sleep(5) # give the page time to fully load
+html <- remDr$getPageSource()[[1]]
+```
+
+```{r}
+
+ca_table2 <- html %>% 
+  read_html() %>% 
+  html_table(fill = T) 
+
+# how many tables
+# length(ca_table2)
+```
+
+```{r}
+ca_table2 <- ca_table2[[2]]
+# head(ca_table2)
+```
+
+```{r}
+ca_table2 <- subset(ca_table2,select = -c(2,8))
+
+names(ca_table2) <- c('Province', 'Percent_of_population_Vaccinated', 'First_doses', 'Second_doses', 
+                      'Recieved_from_manufacturer', 'Received_doses_administered')
+# head(ca_table2)
+```
+
+```{r}
+ca_vaccine2 <- ca_table2 %>%
+  mutate_at(vars('First_doses', 'Second_doses', 'Recieved_from_manufacturer'), 
+            funs(as.numeric(gsub(',', '', .))))
+
+ca_vaccine2$Percent_of_population_Vaccinated <- as.numeric(sub("%","",ca_vaccine2$Percent_of_population_Vaccinated))
+ca_vaccine2$Received_doses_administered <- as.numeric(sub("%","",ca_vaccine2$Received_doses_administered))
+
+# ca_vaccine2
+```
+
+```{r, include=FALSE}
+write_csv(ca_vaccine2, "vaccine_distribution2.csv")
+remDr$close()
+rD$server$stop()
+gc()
+```
+
+```{r}
+ca_vaccine <- read.csv("vaccine_distribution.csv")
+ca_vaccine2 <- read.csv("vaccine_distribution2.csv")
+vac_province <- merge(ca_vaccine, ca_vaccine2, by='Province')
+# vac_province
+```
+
+```{r}
+write_csv(vac_province, "vaccine_province.csv")
+```
+
+
 
 ```{r, include=FALSE}
 
@@ -501,24 +607,34 @@ leaflet(ca_data) %>%
 Column {.tabset}
 -------------------------------------
 
-### Total Vaccines Administered
+### Total Vaccines Received
     
 ```{r,fig.width=15}
-library(ggplot2)
-library(hrbrthemes)
-library(plotly)
-library(scales)
 
-data <- read.csv("vaccine_administration_total_prov.csv")
+
+url <- "https://www.canada.ca/en/public-health/services/diseases/2019-novel-coronavirus-infection/prevention-risks/covid-19-vaccine-treatment/vaccine-rollout.html"
+
+data_test <- url %>%
+  html() %>%
+  html_nodes(xpath='//*[@id="t1"]') %>%
+  html_table()
+data_test <- data_test[[1]]
+
+data <- data_test[-c(1,15,16),]
+data$`Pfizer/BioNTech` <- as.numeric(gsub(",","",data$`Pfizer/BioNTech`))
+data$Moderna <- as.numeric(gsub(",","",data$Moderna))
+data$Total <- as.numeric(gsub(",","",data$Total))
+
+#data <- read.csv("vaccine_administration_total_prov.csv")
 pop_data <- read.csv("province_populations.csv")
 
 pops <- as.numeric(pop_data$Population)
-vaccines_Pfizer <- data$Pfizer.BioNTech
-vaccines_Moderna <- data$Moder
+vaccines_Pfizer <- data$`Pfizer/BioNTech`
+vaccines_Moderna <- data$Moderna
 all_vacs_pop <- vaccines_Pfizer
 
 all_vacs <- vaccines_Pfizer
-Provinces <- data$Province
+Provinces <- data$`Vaccine distribution`
 numProvs <- length(Provinces)
 dup_Prov <- Provinces
 
@@ -539,11 +655,11 @@ for (i in 1:numProvs){
 bar_data <- data.frame(dup_Prov,Vaccines,all_vacs)
 bar_data_pop <- data.frame(dup_Prov,Vaccines,all_vacs_pop)
 bar_data <- within(bar_data, dup_Prov <- factor(dup_Prov, levels = rev(c("Ontario","Alberta","British Columbia", "Manitoba","New Brunswick",
-                                                                     "Newfoundland and Labrador","Northwest Territories", "Nova Scotia",
-                                                                     "Nunavut","Prince Edward Island", "Quebec","Saskatchewan","Yukon"))))
+                                                                     "Newfoundland and  Labrador","Northwest  Territories", "Nova Scotia",
+                                                                     "Nunavut","Prince Edward  Island", "Quebec","Saskatchewan","Yukon"))))
 bar_data_pop <- within(bar_data_pop, dup_Prov <- factor(dup_Prov, levels = rev(c("Ontario","Alberta","British Columbia", "Manitoba","New Brunswick",
-                                                                     "Newfoundland and Labrador","Northwest Territories", "Nova Scotia",
-                                                                     "Nunavut","Prince Edward Island", "Quebec","Saskatchewan","Yukon"))))
+                                                                     "Newfoundland and  Labrador","Northwest  Territories", "Nova Scotia",
+                                                                     "Nunavut","Prince Edward  Island", "Quebec","Saskatchewan","Yukon"))))
 
 cols <- c("Pfizer" = "#481567FF", "Moderna" = "#33638DFF")
 
@@ -553,79 +669,87 @@ pop_p <- ggplot(bar_data, aes(fill=Vaccines, y=all_vacs, x=dup_Prov)) +
   geom_bar(position="stack", stat="identity") +
   scale_y_continuous(labels = function(all_vacs) format(all_vacs, scientific = FALSE)) + 
   xlab("Province") +
-  ylab("Total Vaccines Administered") +
+  ylab("Total Vaccines Received") +
   ylim(0, 450000) +
   scale_y_continuous(labels = point) +
   coord_flip() + 
   scale_colour_manual(values = cols,aesthetics = c("colour", "fill"),labels = c("Moderna","Pfizer")) +
   theme(text = element_text(size=20),plot.title=element_text(hjust=0.5),axis.text.y = element_text(face =
                                                                                                      c('plain','plain','plain','plain','plain','plain','plain','plain','plain','plain','plain','plain','bold')))+
-  ggtitle("Vaccine Adminstration by Province")
+  ggtitle("Vaccines Received by Province")
 
 pop_p
 ```
 
-### Percent Vaccines Administrated
+### Percent Vaccines Received
 
 ```{r,fig.width=15}
-library(ggplot2)
-library(viridis)
-library(hrbrthemes)
-library(plotly)
-library(shiny)
-library(scales)
 
-data <- read.csv("vaccine_administration_total_prov.csv")
-pop_data <- read.csv("province_populations.csv")
 
-pops <- as.numeric(pop_data$Population)
-vaccines_Pfizer <- data$Pfizer.BioNTech
-vaccines_Moderna <- data$Moder
-all_vacs_pop <- vaccines_Pfizer
-
-all_vacs <- vaccines_Pfizer
-Provinces <- data$Province
-numProvs <- length(Provinces)
-dup_Prov <- Provinces
-
-Vaccines <- rep(c("Pfizer" , "Moderna") , numProvs)
-
-for (i in 1:numProvs){
-  dup_Prov[2*i-1] <-Provinces[i]
-  dup_Prov[2*i] <-Provinces[i]
-}
-
-for (i in 1:numProvs){
-  all_vacs[2*i-1] <-vaccines_Pfizer[i]
-  all_vacs[2*i] <-vaccines_Moderna[i]
-  all_vacs_pop[2*i-1] <-vaccines_Pfizer[i]/pops[i]*100
-  all_vacs_pop[2*i] <-vaccines_Moderna[i]/pops[i]*100
-}
-
-bar_data <- data.frame(dup_Prov,Vaccines,all_vacs)
-bar_data_pop <- data.frame(dup_Prov,Vaccines,all_vacs_pop)
-bar_data <- within(bar_data, dup_Prov <- factor(dup_Prov, levels = rev(c("Ontario","Alberta","British Columbia", "Manitoba","New Brunswick",
-                                                                     "Newfoundland and Labrador","Northwest Territories", "Nova Scotia",
-                                                                     "Nunavut","Prince Edward Island", "Quebec","Saskatchewan","Yukon"))))
-bar_data_pop <- within(bar_data_pop, dup_Prov <- factor(dup_Prov, levels = rev(c("Ontario","Alberta","British Columbia", "Manitoba","New Brunswick",
-                                                                     "Newfoundland and Labrador","Northwest Territories", "Nova Scotia",
-                                                                     "Nunavut","Prince Edward Island", "Quebec","Saskatchewan","Yukon"))))
-
-cols <- c("Pfizer" = "#481567FF", "Moderna" = "#33638DFF")
-
-point <- format_format(big.mark = ",", decimal.mark = ",", scientific = FALSE)
+# url <- "https://www.canada.ca/en/public-health/services/diseases/2019-novel-coronavirus-infection/prevention-risks/covid-19-vaccine-treatment/vaccine-rollout.html"
+# 
+# data_test <- url %>%
+#   html() %>%
+#   html_nodes(xpath='//*[@id="t1"]') %>%
+#   html_table()
+# data_test <- data_test[[1]]
+# 
+# data <- data_test[-c(1,15,16),]
+# data$`Pfizer/BioNTech` <- as.numeric(gsub(",","",data$`Pfizer/BioNTech`))
+# data$Moderna <- as.numeric(gsub(",","",data$Moderna))
+# data$Total <- as.numeric(gsub(",","",data$Total))
+# 
+# #data <- read.csv("vaccine_administration_total_prov.csv")
+# pop_data <- read.csv("province_populations.csv")
+# 
+# pops <- as.numeric(pop_data$Population)
+# vaccines_Pfizer <- data$Pfizer.BioNTech
+# vaccines_Moderna <- data$Moder
+# all_vacs_pop <- vaccines_Pfizer
+# 
+# all_vacs <- vaccines_Pfizer
+# Provinces <- data$Province
+# numProvs <- length(Provinces)
+# dup_Prov <- Provinces
+# 
+# Vaccines <- rep(c("Pfizer" , "Moderna") , numProvs)
+# 
+# for (i in 1:numProvs){
+#   dup_Prov[2*i-1] <-Provinces[i]
+#   dup_Prov[2*i] <-Provinces[i]
+# }
+# 
+# for (i in 1:numProvs){
+#   all_vacs[2*i-1] <-vaccines_Pfizer[i]
+#   all_vacs[2*i] <-vaccines_Moderna[i]
+#   all_vacs_pop[2*i-1] <-vaccines_Pfizer[i]/pops[i]*100
+#   all_vacs_pop[2*i] <-vaccines_Moderna[i]/pops[i]*100
+# }
+# 
+# bar_data <- data.frame(dup_Prov,Vaccines,all_vacs)
+# bar_data_pop <- data.frame(dup_Prov,Vaccines,all_vacs_pop)
+# bar_data <- within(bar_data, dup_Prov <- factor(dup_Prov, levels = rev(c("Ontario","Alberta","British Columbia", "Manitoba","New Brunswick",
+#                                                                      "Newfoundland and Labrador","Northwest Territories", "Nova Scotia",
+#                                                                      "Nunavut","Prince Edward Island", "Quebec","Saskatchewan","Yukon"))))
+# bar_data_pop <- within(bar_data_pop, dup_Prov <- factor(dup_Prov, levels = rev(c("Ontario","Alberta","British Columbia", "Manitoba","New Brunswick",
+#                                                                      "Newfoundland and Labrador","Northwest Territories", "Nova Scotia",
+#                                                                      "Nunavut","Prince Edward Island", "Quebec","Saskatchewan","Yukon"))))
+# 
+# cols <- c("Pfizer" = "#481567FF", "Moderna" = "#33638DFF")
+# 
+# point <- format_format(big.mark = ",", decimal.mark = ",", scientific = FALSE)
 
 p <- ggplot(bar_data_pop, aes(fill=Vaccines, y=all_vacs_pop, x=dup_Prov)) +
   geom_bar(position="stack", stat="identity") +
   scale_y_continuous(labels = scales::comma_format(big.mark = ',',decimal.mark = '.')) +
   xlab("Province") +
-  ylab("Vaccines Administered Per Population (%)") +
-  ylim(0, 50) +
+  ylab("Vaccines Received per Population (%)") +
+  ylim(0, 90) +
   coord_flip()+ 
   scale_colour_manual(values = cols,aesthetics = c("colour", "fill"))+
   theme(text = element_text(size=20),plot.title=element_text(hjust=0.5),axis.text.y = element_text(face =
                                                                                               c('plain','plain','plain','plain','plain','plain','plain','plain','plain','plain','plain','plain','bold')))+
-  ggtitle("Vaccine Adminstration by Province")  
+  ggtitle("Vaccines Received by Province")  
 
 p
 
@@ -638,10 +762,11 @@ Column {.tabset}
 ### AB
 ```{r,fig.width=15}
 
+data_ts <- read.csv(url("https://raw.githubusercontent.com/ccodwg/Covid19Canada/master/timeseries_prov/vaccine_administration_timeseries_prov.csv"))
 
 point <- format_format(big.mark = ",", decimal.mark = ",", scientific = FALSE)
 
-data_ts <- read.csv('vaccine_administration_timeseries_prov_2.csv')
+#data_ts <- read.csv('vaccine_administration_timeseries_prov_2.csv')
 
 data_ts$date_vaccine_administered <- as.Date(data_ts$date_vaccine_administered,tryFormats = c("%d-%m-%Y"))
 
