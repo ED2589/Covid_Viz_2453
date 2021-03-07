@@ -424,7 +424,7 @@ write_csv(ca_vaccine, "vaccine_distribution.csv")
 ## Data_2
 vaccine_2 <- 'https://www.ctvnews.ca/health/coronavirus/coronavirus-vaccine-tracker-how-many-people-in-canada-have-received-shots-1.5247509?fbclid=IwAR3HMQewAhl4fmp8SisM6Pdq-xQN-hG9sa0Q9C1ugzqlNa8UZNGblDHGBcA'
 
-rD <- rsDriver(browser="firefox", port=8796L, verbose=F)
+rD <- rsDriver(browser="firefox", port=1998L, verbose=F)
 remDr <- rD[["client"]]
 ```
 
