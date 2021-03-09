@@ -106,7 +106,7 @@ phu <- rgdal::readOGR("./data/Ministry_of_Health_Public_Health_Unit_Boundary.geo
 ontario.data = read.csv("./data/cases_by_status_and_phu.csv", header=T)
 ontario_covid_data <- ontario.data %>%
   dplyr::filter(
-    FILE_DATE == "2021-02-14"
+    FILE_DATE == "2021-03-08"
   )
 ontario_total_data <- merge(x = phu, y = ontario_covid_data, by.x='PHU_ID', by.y='PHU_NUM')
 ```
